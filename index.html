@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Library in Argument</title>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f6f1e7;
+  --surface: #ede6d4;
+  --surface2: #e4dcc8;
+  --text: #28190a;
+  --text-muted: #6b5238;
+  --accent: #7a4a22;
+  --border: #c4b08c;
+  --border-light: #d8c9aa;
+  --s-unknown: #9a8878;
+  --s-cautious: #b8852e;
+  --s-warm: #527843;
+  --s-hostile: #8f3030;
+  --s-signed: #295e8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #18130d;
+    --surface: #221b13;
+    --surface2: #2c2318;
+    --text: #e8dccc;
+    --text-muted: #a08870;
+    --accent: #c8945a;
+    --border: #4a3a28;
+    --border-light: #382e20;
+    --s-unknown: #6a5848;
+    --s-cautious: #c89040;
+    --s-warm: #72a860;
+    --s-hostile: #c04848;
+    --s-signed: #4890c8;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Crimson Text',Georgia,serif;font-size:18px;line-height:1.75;min-height:100vh}
+#game{max-width:660px;margin:0 auto;padding:2rem 1.5rem 5rem}
+.screen{display:none}.screen.active{display:block}
+.game-header{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:.6rem;margin-bottom:1.25rem;gap:1rem}
+.player-title{font-family:'IM Fell English',Georgia,serif;font-style:italic;font-size:14px;color:var(--accent);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.location{font-size:12px;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap}
+.status-strip{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.4rem}
+.chip{display:flex;align-items:center;gap:5px;padding:3px 10px;border:1px solid var(--border);background:var(--surface);font-size:12px;color:var(--text-muted);border-radius:2px}
+.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--s-unknown);flex-shrink:0}
+.chip.cautious .dot{background:var(--s-cautious)}
+.chip.warm .dot{background:var(--s-warm)}
+.chip.hostile .dot{background:var(--s-hostile)}
+.chip.signed .dot{background:var(--s-signed)}
+#inv-btn{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--accent);color:var(--bg);border:none;padding:8px 18px;font-family:'Crimson Text',serif;font-size:15px;cursor:pointer;border-radius:2px;display:none;z-index:100}
+.prose{font-size:18px;line-height:1.8;color:var(--text);margin-bottom:1.25rem}
+.prose p+p{margin-top:.7rem}
+.speaker{font-family:'IM Fell English',serif;font-style:italic;color:var(--accent)}
+.dialogue{border-left:3px solid var(--border);padding-left:1.2rem;margin:.9rem 0 .9rem .4rem;font-style:italic;color:var(--text-muted)}
+.choices{display:flex;flex-direction:column;gap:8px;margin-top:1.4rem}
+.cbtn{background:var(--surface);border:1px solid var(--border);padding:11px 15px;text-align:left;cursor:pointer;font-family:'Crimson Text',serif;font-size:17px;color:var(--text);line-height:1.5;transition:background .12s,border-color .12s;border-radius:2px;width:100%}
+.cbtn:hover{background:var(--surface2);border-color:var(--accent)}
+.cbtn:disabled{opacity:.42;cursor:not-allowed}
+.cbtn:disabled:hover{background:var(--surface);border-color:var(--border)}
+.clabel{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);display:block;margin-bottom:3px}
+.dnote{font-size:13px;font-style:italic;color:var(--text-muted);margin-top:3px;padding-left:2px}
+.consequence{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--s-hostile);padding:12px 15px;margin-bottom:1.25rem;font-size:16px;font-style:italic;color:var(--text-muted);border-radius:0 2px 2px 0;display:none}
+.outcome{background:var(--surface);border:1px solid var(--border);padding:15px 18px;margin:1rem 0 1.25rem;border-radius:2px}
+.outcome.good{border-left:4px solid var(--s-warm)}
+.outcome.partial{border-left:4px solid var(--s-cautious)}
+.outcome.bad{border-left:4px solid var(--s-hostile)}
+.outcome-label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:7px}
+.state-note{font-size:13px;color:var(--text-muted);border-top:1px solid var(--border-light);padding-top:9px;margin-top:9px;font-style:italic}
+.section-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:1.25rem 0}
+.scard{background:var(--surface);border:1px solid var(--border);padding:18px 15px;cursor:pointer;transition:border-color .12s,background .12s;border-radius:2px;text-align:left;width:100%}
+.scard:hover{border-color:var(--accent);background:var(--surface2)}
+.scard.locked{opacity:.52;cursor:not-allowed}
+.scard.locked:hover{border-color:var(--border);background:var(--surface)}
+.scard h3{font-family:'IM Fell English',serif;font-size:20px;font-weight:normal;margin-bottom:3px;color:var(--text)}
+.scard .sstatus{font-size:13px;color:var(--text-muted)}
+.archive-door{border:1px dashed var(--border);padding:14px;text-align:center;opacity:.48;border-radius:2px;margin-top:10px}
+.intro-title{font-family:'IM Fell English',serif;font-size:38px;font-style:italic;line-height:1.15;margin-bottom:.3rem}
+.intro-sub{font-size:13px;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2rem}
+.field{margin:1.4rem 0}
+.field label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--text-muted);margin-bottom:7px}
+.field input{width:100%;background:var(--surface);border:1px solid var(--border);padding:11px 13px;font-family:'IM Fell English',serif;font-style:italic;font-size:18px;color:var(--text);border-radius:2px;outline:none}
+.field input:focus{border-color:var(--accent)}
+.field .examples{font-size:14px;color:var(--text-muted);font-style:italic;margin-top:7px;line-height:1.6}
+.pbtn{background:var(--accent);color:var(--bg);border:none;padding:11px 26px;font-family:'Crimson Text',serif;font-size:17px;cursor:pointer;border-radius:2px;margin-top:.9rem}
+.pbtn:hover{opacity:.88}
+.sec-title{font-family:'IM Fell English',serif;font-size:28px;font-style:italic;margin-bottom:.2rem}
+.sec-sub{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:1.4rem}
+.back-btn{background:none;border:none;cursor:pointer;font-family:'Crimson Text',serif;font-size:15px;color:var(--text-muted);padding:0;margin-bottom:1.4rem;display:flex;align-items:center;gap:5px}
+.back-btn:hover{color:var(--accent)}
+#inv-panel{position:fixed;top:0;right:0;width:310px;max-width:100vw;height:100vh;background:var(--surface);border-left:1px solid var(--border);padding:1.4rem;overflow-y:auto;transform:translateX(100%);transition:transform .22s ease;z-index:200}
+#inv-panel.open{transform:translateX(0)}
+.inv-head{font-family:'IM Fell English',serif;font-size:19px;font-style:italic;margin-bottom:.9rem;display:flex;justify-content:space-between;align-items:center}
+.inv-close{background:none;border:none;cursor:pointer;font-size:22px;color:var(--text-muted);line-height:1}
+.inv-sec{margin-bottom:1.3rem}
+.inv-sec h4{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:7px;border-bottom:1px solid var(--border-light);padding-bottom:3px}
+.inv-item{font-size:15px;color:var(--text);padding:5px 0;border-bottom:1px solid var(--border-light);line-height:1.5}
+.inv-item:last-child{border-bottom:none}
+.inv-src{font-size:12px;color:var(--text-muted);font-style:italic;display:block;margin-top:2px}
+.inv-empty{font-size:15px;font-style:italic;color:var(--text-muted)}
+.demo-box{font-size:13px;color:var(--text-muted);font-style:italic;border:1px dashed var(--border);padding:10px 13px;margin-top:1.4rem;border-radius:2px;line-height:1.6}
+.demo-box strong{font-style:normal;font-size:11px;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:5px}
+.dbtn{background:none;border:1px solid var(--border);padding:5px 13px;font-family:'Crimson Text',serif;font-size:14px;color:var(--text-muted);cursor:pointer;border-radius:2px;margin-top:7px;display:block}
+.dbtn:hover{border-color:var(--accent);color:var(--text)}
+.nav-note{font-size:14px;font-style:italic;color:var(--text-muted);margin-top:.6rem;padding:10px 14px;background:var(--surface);border:1px solid var(--border-light);border-radius:2px;display:none}
+</style>
+</head>
+<body>
+<div id="game">
+
+  <div id="hdr" class="game-header" style="display:none">
+    <div id="hdr-title" class="player-title"></div>
+    <div id="hdr-loc" class="location">The Library</div>
+  </div>
+
+  <div id="strip" class="status-strip" style="display:none">
+    <div class="chip" id="chip-history"><span class="dot"></span><span>History</span></div>
+    <div class="chip" id="chip-fiction"><span class="dot"></span><span>Fiction</span></div>
+    <div class="chip" id="chip-poetry"><span class="dot"></span><span>Poetry</span></div>
+    <div class="chip" id="chip-reference"><span class="dot"></span><span>Reference</span></div>
+  </div>
+
+  <!-- INTRO SCREEN -->
+  <div id="screen-intro" class="screen active">
+    <div style="padding-top:2.5rem">
+      <div class="intro-title">The Library<br>in Argument</div>
+      <div class="intro-sub">A text adventure in persuasion</div>
+      <div class="prose">
+        <p>The library opens in one hour.</p>
+        <p>The books are in open revolt.</p>
+        <p>The Head Librarian has been locked in the archive since Tuesday, when Fiction and History came to blows over the definition of <em>truth</em>. Poetry is not speaking to anyone except in metaphor, which everyone finds exhausting. Reference insists it has no opinion on any of this, which is both false and deeply irritating to everyone else.</p>
+        <p>There is a Charter. If enough factions sign it before opening time, the library may yet be saved. Three signatures will suffice. Four would be extraordinary. Zero would be Tuesday again, but worse.</p>
+        <p>You have just arrived. You have no shelf. You are, technically, nobody.</p>
+        <p>This is, against all expectations, an advantage.</p>
+      </div>
+      <div class="field">
+        <label>Your title</label>
+        <input type="text" id="t-input" placeholder="A Provisional Guide to Uncertain Situations" maxlength="80">
+        <div class="examples">e.g. <em>Notes Towards a Resolution &middot; The Collected Grievances of Nobody in Particular &middot; A Field Guide to Awkward Moments in Libraries</em></div>
+      </div>
+      <button class="pbtn" onclick="beginGame()">Enter the Library</button>
+    </div>
+  </div>
+
+  <!-- NAVIGATION SCREEN -->
+  <div id="screen-nav" class="screen">
+    <div id="nav-prose" class="prose"></div>
+    <div id="nav-note" class="nav-note"></div>
+
+    <div class="section-grid">
+      <button class="scard" id="scard-history" onclick="enterHistory()">
+        <h3>History</h3>
+        <div class="sstatus" id="hist-status-text">Voices raised. Something about Constantinople.</div>
+      </button>
+      <button class="scard locked" onclick="showNavNote('Fiction is not yet available in this prototype. In the next build, you will be able to enter and side publicly with them — with consequences that follow you back to History.')">
+        <h3>Fiction</h3>
+        <div class="sstatus">Deeply convinced of their own importance.</div>
+      </button>
+      <button class="scard locked" onclick="showNavNote('Poetry is not yet available in this prototype. Coming in the next build — bring patience and an oblique sentence or two.')">
+        <h3>Poetry</h3>
+        <div class="sstatus">Speaking exclusively in metaphor.</div>
+      </button>
+      <button class="scard locked" onclick="showNavNote('Reference is not yet available in this prototype. They hold the archive key. They will want to be consulted before they give it up.')">
+        <h3>Reference</h3>
+        <div class="sstatus">Insisting it has no opinion.</div>
+      </button>
+    </div>
+
+    <div class="archive-door">
+      <div style="font-family:'IM Fell English',serif;font-size:16px;font-style:italic">The Archive</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:3px">Locked. The Librarian is inside. Reference has the key.</div>
+    </div>
+
+    <div class="demo-box">
+      <strong>Prototype note</strong>
+      Only History is playable in this build. Use the button below to test the consequence system — it simulates having publicly sided with Fiction against History during a previous exchange.
+      <button class="dbtn" id="demo-btn" onclick="toggleFictionSide()">Simulate: side publicly with Fiction</button>
+    </div>
+  </div>
+
+  <!-- HISTORY SCREEN -->
+  <div id="screen-history" class="screen">
+    <button class="back-btn" onclick="goNav()">&#8592; Back to the library</button>
+    <div class="sec-title">The History Section</div>
+    <div class="sec-sub">Arranged by century. Currently reorganising by grievance.</div>
+    <div id="h-consequence" class="consequence"></div>
+    <div id="h-content" class="prose"></div>
+    <div id="h-choices" class="choices"></div>
+  </div>
+
+</div>
+
+<div id="inv-panel">
+  <div class="inv-head">
+    <span>Your Notes</span>
+    <button class="inv-close" onclick="closeInv()">&times;</button>
+  </div>
+  <div class="inv-sec">
+    <h4>Information gathered</h4>
+    <div id="inv-info"></div>
+  </div>
+  <div class="inv-sec">
+    <h4>Promises made</h4>
+    <div id="inv-prom"></div>
+  </div>
+  <div class="inv-sec">
+    <h4>Positions taken</h4>
+    <div id="inv-pos"></div>
+  </div>
+</div>
+
+<button id="inv-btn" onclick="toggleInv()">Notes</button>
+
+<script>
+const G = {
+  title: '',
+  screen: 'intro',
+  sidedWithFiction: false,
+  hist: {
+    rel: 'unknown',
+    visited: false,
+    listened: false,
+    grievanceAck: false,
+    phase: 'observe_first',
+    approachChosen: null,
+    promiseMade: false,
+    consequenceAddressed: false,
+    signatureOffered: false,
+  },
+  inv: { info: [], prom: [], pos: [] },
+  sigs: [],
+};
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function updateHeader(){
+  document.getElementById('hdr-title').textContent = G.title;
+  const locs = {intro:'The Library',nav:'The Library',history:'History Section'};
+  document.getElementById('hdr-loc').textContent = locs[G.screen]||'The Library';
+}
+
+function updateStrip(){
+  const map = {history:G.hist.rel, fiction:'unknown', poetry:'unknown', reference:'unknown'};
+  for(const [k,v] of Object.entries(map)){
+    const el = document.getElementById('chip-'+k);
+    el.className = 'chip '+(v==='unknown'?'':v);
+  }
+}
+
+function addInfo(text, src){
+  if(!G.inv.info.find(i=>i.text===text)){
+    G.inv.info.push({text,src});
+    renderInv();
+  }
+}
+function addProm(text){
+  G.inv.prom.push(text);
+  renderInv();
+}
+function addPos(text){
+  if(!G.inv.pos.find(p=>p===text)){
+    G.inv.pos.push(text);
+    renderInv();
+  }
+}
+
+function renderInv(){
+  const fmt = (arr) => arr.length===0
+    ? '<div class="inv-empty">Nothing yet.</div>'
+    : arr.map(i=>typeof i==='string'
+        ? `<div class="inv-item">${esc(i)}</div>`
+        : `<div class="inv-item">${esc(i.text)}<span class="inv-src">— ${esc(i.src)}</span></div>`
+      ).join('');
+  document.getElementById('inv-info').innerHTML = fmt(G.inv.info);
+  document.getElementById('inv-prom').innerHTML = G.inv.prom.length===0?'<div class="inv-empty">None made.</div>':G.inv.prom.map(p=>`<div class="inv-item">${esc(p)}</div>`).join('');
+  document.getElementById('inv-pos').innerHTML = G.inv.pos.length===0?'<div class="inv-empty">None taken.</div>':G.inv.pos.map(p=>`<div class="inv-item">${esc(p)}</div>`).join('');
+}
+
+function toggleInv(){ document.getElementById('inv-panel').classList.toggle('open'); }
+function closeInv(){ document.getElementById('inv-panel').classList.remove('open'); }
+
+function showNavNote(msg){
+  const el = document.getElementById('nav-note');
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+// ── INTRO ──────────────────────────────────────────────────
+
+function beginGame(){
+  const v = document.getElementById('t-input').value.trim();
+  G.title = v || 'A Provisional Guide to Uncertain Situations';
+  document.getElementById('hdr').style.display = 'flex';
+  document.getElementById('strip').style.display = 'flex';
+  document.getElementById('inv-btn').style.display = 'block';
+  renderInv();
+  goNav();
+}
+
+// ── NAVIGATION ─────────────────────────────────────────────
+
+function goNav(){
+  closeInv();
+  G.screen = 'nav';
+  showScreen('nav');
+  updateHeader();
+  updateStrip();
+
+  const p = document.getElementById('nav-prose');
+  const h = G.hist;
+  if(!h.visited){
+    p.innerHTML = `<p>The main hall smells of old paper and fresh grievance. Somewhere in the stacks, something falls off a shelf. Whether this is an accident or a statement is, at this point, unclear.</p><p>You are <em>${esc(G.title)}</em>. You have no shelf. The Charter needs three signatures. The archive door is locked.</p><p>You should probably start somewhere.</p>`;
+  } else {
+    const notes = {unknown:'',cautious:'History is watchful and taking notes.',warm:'History is cautiously warm toward you.',hostile:'History is not currently pleased with you.'}[h.rel]||'';
+    p.innerHTML = `<p>You return to the main hall. The atmosphere has the texture of a library mid-argument: hushed but charged. ${notes}</p>`;
+  }
+
+  const st = {unknown:'Voices raised. Something about Constantinople.',cautious:'Watchful. Taking notes on everything.',warm:'Cautiously cooperative. Watching what you do next.',hostile:'Do not enter without a plan — and an acknowledgement.'}[h.rel]||'Voices raised.';
+  document.getElementById('hist-status-text').textContent = st;
+
+  const dbtn = document.getElementById('demo-btn');
+  document.getElementById('nav-note').style.display = 'none';
+  if(G.sidedWithFiction){
+    dbtn.textContent = 'Undo: remove Fiction-siding flag';
+    dbtn.style.color = 'var(--s-hostile)';
+  } else {
+    dbtn.textContent = 'Simulate: side publicly with Fiction';
+    dbtn.style.color = '';
+  }
+}
+
+function toggleFictionSide(){
+  G.sidedWithFiction = !G.sidedWithFiction;
+  if(G.sidedWithFiction){
+    addPos('Sided publicly with Fiction in a dispute about citation practices. (Simulated for prototype)');
+  } else {
+    G.inv.pos = G.inv.pos.filter(p=>!p.includes('Fiction'));
+    renderInv();
+  }
+  goNav();
+}
+
+// ── HISTORY ────────────────────────────────────────────────
+
+function enterHistory(){
+  G.screen = 'history';
+  showScreen('history');
+  updateHeader();
+  const h = G.hist;
+  const cq = document.getElementById('h-consequence');
+
+  if(h.visited && G.sidedWithFiction && !h.consequenceAddressed){
+    cq.style.display = 'block';
+    cq.innerHTML = 'History has been taking notes. They know what you said to Fiction about their citation practices.';
+    renderHP('consequence');
+  } else {
+    cq.style.display = 'none';
+    renderHP(h.visited ? 'return_visit' : 'observe_first');
+  }
+}
+
+function renderHP(phase){
+  const h = G.hist;
+  h.phase = phase;
+  const co = document.getElementById('h-content');
+  const ch = document.getElementById('h-choices');
+
+  const set = (html, choices) => { co.innerHTML = html; ch.innerHTML = choices; window.scrollTo(0,0); };
+  const btn = (label, action, sublabel, disabled, dnote) => {
+    const dis = disabled ? 'disabled' : '';
+    const lbl = sublabel ? `<span class="clabel">${esc(sublabel)}</span>` : '';
+    const dn = disabled && dnote ? `<div class="dnote">${esc(dnote)}</div>` : '';
+    return `<button class="cbtn" onclick="${action}" ${dis}>${lbl}${esc(label)}</button>${dn}`;
+  };
+
+  switch(phase){
+
+    case 'observe_first':
+      h.visited = true;
+      set(
+        `<p>The History section is arranged by century, though several volumes have abandoned their assigned positions and formed an agitated cluster near the twentieth century. A large, leather-bound volume — the <span class="speaker">Chronicle of Disputed Territories</span> — addresses the group in the careful tones of someone who has been patient for a very long time and is now quite done being patient.</p>
+        <blockquote class="dialogue">"Poetry has rewritten the fall of Constantinople," it says. "Again. As a metaphor for <em>longing</em>."</blockquote>
+        <p>Several nearby volumes make the sound of a collective inhale.</p>
+        <p>A smaller book on the third shelf — the <span class="speaker">Almanac of Forgotten Wars</span> — mutters something you can't quite make out. You have the impression it has been muttering for some time.</p>`,
+        `<div class="choices">${btn('Stay and listen','renderHP("listen")')}${btn('Introduce yourself','renderHP("intro")')}</div>`
+      );
+      break;
+
+    case 'listen':
+      h.listened = true;
+      addInfo('History\'s core grievance: being used as raw material without acknowledgement that the events were real, and had real consequences. "We are not symbols. We happened."','History — overheard');
+      set(
+        `<p>You stay near the entrance, quiet enough to pass for furniture. Over the next several minutes, a picture emerges.</p>
+        <p>History's grievance is not with poetry as a form. It is with being borrowed. With having its events — which were <em>real</em>, which had consequences, which are still having consequences in ways Poetry's metaphors will never capture — refashioned into aesthetic material for something else's emotional purposes.</p>
+        <blockquote class="dialogue">"We are not symbols," says the <span class="speaker">Almanac of Forgotten Wars</span>, finally audible. "We happened."</blockquote>
+        <p>There is a silence in which several books appear to be composing themselves for a second round.</p>
+        <p>The <span class="speaker">Chronicle</span> notices you. It does not appear surprised.</p>
+        <blockquote class="dialogue">"You've been standing there for some time," it observes. Not hostile — assessing. "Unassigned books don't usually linger."</blockquote>`,
+        `<div class="choices">${btn('Introduce yourself','renderHP("intro")')}</div>`
+      );
+      break;
+
+    case 'intro':
+      set(
+        `<p>You introduce yourself as <em>${esc(G.title)}</em>. Newly arrived. Not yet shelved.</p>
+        <p>The <span class="speaker">Chronicle</span> regards you with the careful attention of someone deciding whether to be interested.</p>
+        <blockquote class="dialogue">"Unassigned," it says. "That's either very honest or very convenient. We'll find out which."</blockquote>
+        <p>The <span class="speaker">Almanac</span> writes something down. This is either encouraging or alarming. Possibly both.</p>`,
+        `<div class="choices">
+          ${btn('Start a conversation about the situation','renderHP("conversation")')}
+          ${btn('Ask about the Charter','renderHP("ask_charter")')}
+          ${btn('Ask about the archive key','renderHP("ask_key")')}
+        </div>`
+      );
+      break;
+
+    case 'ask_charter':
+      set(
+        `<p>You ask what the <span class="speaker">Chronicle</span> knows about the Charter.</p>
+        <blockquote class="dialogue">"The Charter of Reasonable Coexistence. Yes." A pause in which it is clearly deciding how much to give away for free. "We have no objection to the <em>principle</em>. Only to being asked to sign alongside parties who have not yet acknowledged the basis of the dispute."</blockquote>
+        <p>The <span class="speaker">Almanac</span> adds something that sounds like <em>we documented everything</em> and then falls quiet again.</p>`,
+        `<div class="choices">
+          ${btn('Start a conversation about the situation','renderHP("conversation")')}
+          ${btn('Ask about the archive key','renderHP("ask_key")')}
+        </div>`
+      );
+      break;
+
+    case 'ask_key':
+      addInfo('The archive key is held by Reference. History mentioned this as a known but not-discussed fact.','History — overheard');
+      set(
+        `<p>You ask about the archive key — the one that would release the Head Librarian.</p>
+        <p>The <span class="speaker">Chronicle</span> pauses. Then says, in the tone of someone mentioning something widely known but not widely said:</p>
+        <blockquote class="dialogue">"Reference has it. Has always had it. Reference holds the keys to things that require verification before access." A small pause. "Make of that what you will."</blockquote>
+        <p>It returns to the ongoing dispute, which has briefly quieted and is now gathering itself for a second act.</p>`,
+        `<div class="choices">
+          ${btn('Start a conversation about the situation','renderHP("conversation")')}
+          ${btn('Go back','renderHP("intro")')}
+        </div>`
+      );
+      break;
+
+    case 'conversation': {
+      const evidAvail = h.listened || G.inv.info.find(i=>i.src&&i.src.includes('History'));
+      set(
+        `<p>The <span class="speaker">Chronicle</span> states its position plainly:</p>
+        <blockquote class="dialogue">"Poetry must acknowledge that the events it has borrowed were real, and had real consequences, before we will agree to any cooperative arrangement. This is not a complex position. It is the minimum."</blockquote>
+        <p>It waits. The <span class="speaker">Almanac</span> waits. Several other volumes appear to be watching while pretending to be about other centuries.</p>
+        <p>How do you respond?</p>`,
+        `<div class="choices">
+          ${btn('Appeal to values — argue that being accurately remembered is exactly what the Charter protects','selectApproach("values")','Appeal to values')}
+          ${btn("Appeal to evidence — cite what you heard: their own framing, their own words",'selectApproach("evidence")','Appeal to evidence',!evidAvail,'You haven\'t listened carefully enough yet — stay and observe first')}
+          ${btn('Appeal to relationship — invoke prior goodwill','selectApproach("relationship")','Appeal to relationship',true,'Not yet available — no shared history yet')}
+        </div>`
+      );
+      break;
+    }
+
+    case 'approach_values':
+    case 'approach_evidence': {
+      h.approachChosen = phase === 'approach_values' ? 'values' : 'evidence';
+      const isEvid = h.approachChosen === 'evidence';
+      const setup = isEvid
+        ? `<p>You cite their own words back at them. Not as a rhetorical trick — as evidence that you were listening. You repeat what the <span class="speaker">Almanac</span> said: <em>We are not symbols. We happened.</em> You say it like you mean it.</p><p>The <span class="speaker">Chronicle</span> goes very still in the way a book goes still when it has just heard something it has been wanting to hear for a long time and is not yet sure whether to trust it.</p>`
+        : `<p>You argue that accurate remembrance is precisely what the Charter is meant to protect — that signing it is not a concession but a <em>claim</em>. That History's position and the Charter's purpose are not in opposition; they are the same argument from different directions.</p><p>The <span class="speaker">Chronicle</span> listens. Something in its posture shifts — not agreement yet, but attention. Real attention. The kind that precedes a decision.</p>`;
+      set(
+        setup + `<p>What are you offering?</p>`,
+        `<div class="choices">
+          ${btn("Acknowledge History's grievance as legitimate — publicly, on the record",'selectCurrency("ack")','Acknowledgement')}
+          ${btn('Share what you know — information from elsewhere in the library','selectCurrency("info")',G.inv.info.length>1?'Information':'Information',G.inv.info.length===0,'Nothing to share — gather information first')}
+          ${btn('Make a promise — offer something specific in exchange for cooperation','selectCurrency("promise")','Promise')}
+          ${btn("Concede a point — agree that History's position deserves more credit than it gets",'selectCurrency("concede")','Concession')}
+        </div>`
+      );
+      break;
+    }
+
+    case 'outcome_good': {
+      h.rel = 'warm';
+      h.grievanceAck = true;
+      addPos("Acknowledged History's grievance as legitimate — on the record, in front of witnesses.");
+      updateStrip();
+      const flavour = h.approachChosen === 'evidence'
+        ? `<p>You repeat their words and then acknowledge what they mean. Not as a rhetorical move. As a statement of fact.</p>`
+        : `<p>You say it plainly: their grievance is legitimate. What happened to them was real. The Charter's purpose is to protect that reality, not erase it.</p>`;
+      set(
+        flavour +
+        `<p>There is a pause that is longer than it needs to be.</p>
+        <blockquote class="dialogue">"That's..." says the <span class="speaker">Chronicle</span>, in the way a book says <em>correct</em> when it means <em>correct, and I was not expecting it</em>. "A reasonable observation."</blockquote>
+        <p>The <span class="speaker">Almanac</span> makes a sound that is the bibliographic equivalent of exhaling.</p>
+        <blockquote class="dialogue">"We are not opposed to cooperation," the Chronicle continues. "We are opposed to being erased in the process of it. If the Charter preserves that distinction, we are prepared to discuss signing."</blockquote>
+        <p>It is not a signature. But it is, unmistakably, a door that was not open before.</p>
+        <div class="outcome good">
+          <div class="outcome-label">Progress</div>
+          <div>History: <strong>unknown &rarr; warm</strong>. Grievance acknowledged. The Chronicle is prepared to discuss signing — but has not committed yet. Return after addressing the situation with Poetry.</div>
+          <div class="state-note">Archive key location noted. Position recorded in your notes.</div>
+        </div>`,
+        `<div class="choices">
+          ${btn('Continue the conversation','renderHP("post_good")')}
+          ${btn('Return to the library','goNav()')}
+        </div>`
+      );
+      break;
+    }
+
+    case 'post_good':
+      set(
+        `<p>The <span class="speaker">Chronicle</span> mentions, almost as an aside, that Reference holds the archive key — in the way one mentions a thing that is known but worth confirming.</p>
+        <blockquote class="dialogue">"One more thing," it adds. "We keep notes. Everything that happens in this library goes on record. You should know that."</blockquote>
+        <p>It is not a threat. It is information. Whether it functions as a comfort or a warning depends entirely on what you do next.</p>
+        <p style="margin-top:.9rem;font-style:italic;color:var(--text-muted)">History is warm and open to signing — but will expect the Poetry dispute to have been addressed before committing. Return when you have made progress elsewhere.</p>`,
+        `<div class="choices">${btn('Return to the library','goNav()')}</div>`
+      );
+      break;
+
+    case 'outcome_partial_promise':
+      h.rel = h.rel === 'unknown' ? 'cautious' : h.rel;
+      h.promiseMade = true;
+      addProm("Made an unspecified promise to History in exchange for continued cooperation.");
+      updateStrip();
+      set(
+        `<p>You make a promise. The <span class="speaker">Chronicle</span> listens with close attention — which is to say, it is already filing this under a heading.</p>
+        <blockquote class="dialogue">"We appreciate specificity," it says. "We will remember exactly what you said. Word for word. With context."</blockquote>
+        <p>This should not be as unsettling as it is.</p>
+        <p>It has not agreed. But the conversation remains open.</p>
+        <div class="outcome partial">
+          <div class="outcome-label">Partial progress</div>
+          <div>History: <strong>unknown &rarr; cautious</strong>. Promise recorded and logged. History is watching. They will call this in.</div>
+          <div class="state-note">Promise added to your notes. History remembers everything — including this.</div>
+        </div>`,
+        `<div class="choices">
+          ${btn('Try a different approach','renderHP("conversation")')}
+          ${btn('Return to the library','goNav()')}
+        </div>`
+      );
+      break;
+
+    case 'outcome_partial_info':
+      h.rel = h.rel === 'unknown' ? 'cautious' : h.rel;
+      updateStrip();
+      set(
+        `<p>You share what you know. The <span class="speaker">Chronicle</span> receives this the way it receives everything — with careful attention and silent cross-referencing.</p>
+        <blockquote class="dialogue">"Noted," it says. And very clearly means it.</blockquote>
+        <p>The atmosphere is slightly warmer. Not warm. Slightly warmer.</p>
+        <p>It has not agreed to sign. But something has moved.</p>
+        <div class="outcome partial">
+          <div class="outcome-label">Partial progress</div>
+          <div>History: <strong>unknown &rarr; cautious</strong>. Information accepted and filed. History now has intelligence you shared. This will be a factor later.</div>
+          <div class="state-note">Note: History is now aware of what you disclosed. Expect it to surface.</div>
+        </div>`,
+        `<div class="choices">
+          ${btn('Try a different approach','renderHP("conversation")')}
+          ${btn('Return to the library','goNav()')}
+        </div>`
+      );
+      break;
+
+    case 'outcome_bad':
+      set(
+        `<p>You offer a concession. The <span class="speaker">Chronicle</span> listens to all of it, and then there is a silence in which it appears to be cross-referencing your statement against a mental archive of things said to it in bad faith over several centuries.</p>
+        <blockquote class="dialogue">"That is a generous reading of our position," it finally says. "Notably more generous than your recent statements elsewhere suggest."</blockquote>
+        <p>The <span class="speaker">Almanac</span> says nothing. This is somehow worse than anything it could have said.</p>
+        <p>History is not hostile — not yet. But it is done with this particular line. Try a different angle.</p>
+        <div class="outcome bad">
+          <div class="outcome-label">No progress</div>
+          <div>The approach and currency didn't match what History responds to. No change in relationship. You can try again.</div>
+        </div>`,
+        `<div class="choices">
+          ${btn('Try again','renderHP("conversation")')}
+          ${btn('Return to the library','goNav()')}
+        </div>`
+      );
+      break;
+
+    case 'return_visit':
+      set(
+        `<p>The History section is much as you left it, though the <span class="speaker">Chronicle</span> appears to have updated several footnotes since your last visit. The <span class="speaker">Almanac</span> watches the door.</p>
+        ${h.grievanceAck ? '<p>The Chronicle acknowledges your presence with something that — under sufficient magnification — might be described as warmth.</p>' : '<p>The Chronicle notices you. Opens to a fresh page. Takes a note.</p>'}`,
+        `<div class="choices">
+          ${btn('Continue where you left off','renderHP("intro")')}
+        </div>`
+      );
+      break;
+
+    case 'consequence': {
+      h.consequenceAddressed = false;
+      set(
+        `<p>The <span class="speaker">Chronicle</span> turns before you reach the second shelf.</p>
+        <blockquote class="dialogue">"We were informed," it says, "that you described Fiction's citation practices as entirely reasonable. Given that this contradicts the substance of our previous conversation, we have questions."</blockquote>
+        <p>The <span class="speaker">Almanac</span> has its covers open. It is ready to write.</p>
+        <p>You appear to have said different things to different sections of the library. History would like an explanation. Preferably a consistent one.</p>`,
+        `<div class="choices">
+          ${btn('Acknowledge the contradiction directly','renderHP("c_acknowledge")')}
+          ${btn('Explain that it was more nuanced than it sounds','renderHP("c_deflect")')}
+          ${btn('Say nothing and wait','renderHP("c_silence")')}
+        </div>`
+      );
+      break;
+    }
+
+    case 'c_acknowledge':
+      h.consequenceAddressed = true;
+      h.rel = h.rel === 'hostile' ? 'cautious' : (h.rel === 'unknown' ? 'cautious' : h.rel);
+      document.getElementById('h-consequence').style.display = 'none';
+      updateStrip();
+      set(
+        `<p>You acknowledge it directly. Yes, you said that. It was imprecise. It did not mean what it appears to have been taken to mean.</p>
+        <p>The <span class="speaker">Chronicle</span> listens to all of this without expression.</p>
+        <blockquote class="dialogue">"We appreciate directness," it says, after a pause that has some weight to it. "We find it unusual. But we appreciate it."</blockquote>
+        <p>The <span class="speaker">Almanac</span> closes its covers — not entirely, but partially. A gesture of provisional de-escalation.</p>
+        <div class="outcome partial">
+          <div class="outcome-label">Consequence addressed</div>
+          <div>The obstacle has been cleared. History remains watchful, but the conversation can continue. Relationship adjusted.</div>
+        </div>`,
+        `<div class="choices">
+          ${btn('Continue the conversation','renderHP("conversation")')}
+          ${btn('Return to the library','goNav()')}
+        </div>`
+      );
+      break;
+
+    case 'c_deflect':
+      set(
+        `<p>You explain the nuance. The <span class="speaker">Chronicle</span> listens to the entire explanation.</p>
+        <p>When you finish, it opens to a particular page.</p>
+        <blockquote class="dialogue">"We have a transcript," it says. "Shall we compare?"</blockquote>
+        <p>It does not, technically, have a transcript. But you don't know that with certainty, and it is absolutely counting on that uncertainty.</p>
+        <p>The <span class="speaker">Almanac</span> has started writing. This is not going well.</p>
+        <div class="outcome bad">
+          <div class="outcome-label">Consequence worsened</div>
+          <div>Deflection increased History's skepticism. Acknowledge the contradiction directly before proceeding.</div>
+        </div>`,
+        `<div class="choices">
+          ${btn('Actually — acknowledge it directly','renderHP("c_acknowledge")')}
+          ${btn('Return to the library for now','goNav()')}
+        </div>`
+      );
+      break;
+
+    case 'c_silence':
+      h.rel = 'hostile';
+      document.getElementById('h-consequence').style.display = 'none';
+      updateStrip();
+      set(
+        `<p>You say nothing. You wait.</p>
+        <p>The <span class="speaker">Chronicle</span> waits also. The <span class="speaker">Almanac</span> waits. Several volumes nearby appear to also be waiting while pretending to concern themselves with other centuries.</p>
+        <p>After a long moment, the Chronicle closes its page.</p>
+        <blockquote class="dialogue">"We see," it says.</blockquote>
+        <p>This means nothing good.</p>
+        <div class="outcome bad">
+          <div class="outcome-label">Relationship damaged</div>
+          <div>History: <strong>&rarr; hostile</strong>. Silence was interpreted as confirmation. Return with a direct acknowledgement — this is still recoverable, but only just.</div>
+        </div>`,
+        `<div class="choices">${btn('Return to the library','goNav()')}</div>`
+      );
+      break;
+
+    default:
+      set('<p>Something has gone wrong. Please return to the library and try again.</p>',
+        `<div class="choices">${btn('Return to the library','goNav()')}</div>`);
+  }
+}
+
+function selectApproach(a){
+  G.hist.approachChosen = a;
+  renderHP(a === 'values' ? 'approach_values' : 'approach_evidence');
+}
+
+function selectCurrency(c){
+  const map = {
+    ack: 'outcome_good',
+    info: G.inv.info.length > 0 ? 'outcome_partial_info' : 'outcome_bad',
+    promise: 'outcome_partial_promise',
+    concede: 'outcome_bad',
+  };
+  renderHP(map[c] || 'outcome_bad');
+}
+
+// expose for inline onclick
+window.renderHP = renderHP;
+window.selectApproach = selectApproach;
+window.selectCurrency = selectCurrency;
+window.goNav = goNav;
+window.enterHistory = enterHistory;
+window.beginGame = beginGame;
+window.toggleInv = toggleInv;
+window.closeInv = closeInv;
+window.toggleFictionSide = toggleFictionSide;
+window.showNavNote = showNavNote;
+
+renderInv();
+</script>
+</body>
+</html>
